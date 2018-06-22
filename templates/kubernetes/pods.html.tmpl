@@ -1,0 +1,17 @@
+{{define "content"}}
+<div class="container">
+  <div class="row">
+    <div class="jumbotron">
+      <h1>PODS</h1>
+      <div class="alert alert-danger {{.PageSysContent.AlertDanger.ClassHidden}}">{{.PageSysContent.AlertDanger.TextAlert}}</div>
+      <table class="table">
+        {{range .ApiPods.Pods}}
+
+        <tr> <td>{{.NodeName}}</td> <td>{{.ObjectMeta.Name}}</td></tr>
+
+        {{end}}
+      </table>
+    </div>
+  </div>
+</div>
+{{end}}
