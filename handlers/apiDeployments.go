@@ -20,6 +20,8 @@ import (
 	"github.com/gorilla/sessions"
 )
 
+const maxValueScale = 5
+
 type ErrorsForm struct {
 	Errors []string
 }
@@ -42,6 +44,10 @@ func (kv *KeyValue) validate(pgs *PageSysContent) (*KeyValue, bool) {
 		return kv, false
 	}
 	kv.ValInt = i
+	if kv.ValInt > maxValueScale {
+		pgs.AddDangerText(fmt.Sprintf("Max value for Scale is %v", maxValueScale))
+		return kv, false
+	}
 	return kv, true
 }
 
@@ -81,6 +87,7 @@ func PageDeployments(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		pgs.AddDangerText(err.Error())
 		log.Printf("Error GetDeployments %v ", err.Error())
+		kubService.ReloadAuth()
 	}
 
 	if kv, ok := GetKeyValue(r).validate(pgs); ok == true && kv.hasValue {

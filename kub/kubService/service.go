@@ -1,14 +1,12 @@
 package kubService
 
 import (
-	"fmt"
-	"os"
+	"log"
+	"sync"
+	"sync/atomic"
 	"time"
 
-	"sync"
-
-	"sync/atomic"
-
+	"git.betfavorit.cf/backend/logger"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/clientKub"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/domain/deployments"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/domain/pods"
@@ -23,6 +21,11 @@ var (
 
 type ServiceKubernetes struct {
 	restClient *clientKub.RestClient
+}
+
+//reload auth if error data received
+func ReloadAuth() {
+	atomic.AddUint32(&initialized, 2)
 }
 
 func InitInstance(restClient *clientKub.RestClient) *ServiceKubernetes {
@@ -43,62 +46,54 @@ func (sk *ServiceKubernetes) GetRestClient() *clientKub.RestClient {
 }
 
 func (sk *ServiceKubernetes) Start() {
-	sk.auth()
 	for {
-		sk.refresh()
-		time.Sleep(time.Second * 2)
-		fmt.Print(".")
-
-		if atomic.LoadUint32(&initialized) == 0 {
-			atomic.StoreUint32(&initialized, 1)
-			ch <- struct{}{}
+		sk.auth()
+		for {
+			err := sk.refresh()
+			if err != nil {
+				break
+			}
+			time.Sleep(time.Second * 2)
+			if atomic.LoadUint32(&initialized) == 0 {
+				atomic.StoreUint32(&initialized, 1)
+				ch <- struct{}{}
+			}
+			if atomic.LoadUint32(&initialized) == 2 {
+				break
+			}
 		}
+		logger.Error("restart auth")
+		log.Printf("restart auth")
+		atomic.StoreUint32(&initialized, 1)
+		time.Sleep(time.Second * 3)
 	}
 }
 
-func (sk *ServiceKubernetes) refresh() {
+func (sk *ServiceKubernetes) refresh() error {
 	_, err := sk.restClient.Status()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
-	//token
 	err = sk.restClient.CsrfToken()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	err = sk.restClient.UpdateRefreshToken()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	//bytes, err := sk.restClient.Pod("deploy")
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-
-	//bytes = bytes
-	//fmt.Println(string(bytes))
-
+	return err
 }
 
 func (sk *ServiceKubernetes) auth() {
 	csrfToken, err := sk.restClient.CsrfLogin()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		logger.Fatal(err)
 	}
 
 	err = sk.restClient.Login(csrfToken)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		logger.Fatal(err)
 	}
-
 }
 
 func (sk *ServiceKubernetes) GetPods() (*pods.ApiPod, error) {
@@ -109,12 +104,13 @@ func (sk *ServiceKubernetes) GetPods() (*pods.ApiPod, error) {
 
 	bufByte, err := sk.restClient.Pod("deploy")
 	if err != nil {
+		logger.Errorf("request getPods failed: %v", err)
 		return apiPod, err
 	}
 
 	apiPod = &pods.ApiPod{}
 	err = apiPod.UnmarshalJSON(bufByte)
-	return apiPod, nil
+	return apiPod, err
 }
 
 func (sk *ServiceKubernetes) GetDeployments() (*deployments.Deployments, error) {
@@ -125,6 +121,7 @@ func (sk *ServiceKubernetes) GetDeployments() (*deployments.Deployments, error) 
 
 	bufByte, err := sk.restClient.Deployment("deploy")
 	if err != nil {
+		logger.Errorf("request getDeployments failed: %v", err)
 		return depls, err
 	}
 
@@ -140,6 +137,7 @@ func (sk *ServiceKubernetes) ScaleBy(nameDep string, scaleBy uint64) (*deploymen
 	var depResp *deployments.Response
 	bufByte, err := sk.restClient.Scale(nameDep, scaleBy)
 	if err != nil {
+		logger.Errorf("request scaleBy failed: %v", err)
 		return depResp, err
 	}
 

@@ -1,15 +1,15 @@
 package handlers
 
 import (
-	"git.betfavorit.cf/vadim.tsurkov/kuberweb/libhttp"
-	"git.betfavorit.cf/vadim.tsurkov/kuberweb/models"
-
 	"html/template"
 	"net/http"
 
+	"github.com/gorilla/sessions"
+
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/domain/pods"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/kubService"
-	"github.com/gorilla/sessions"
+	"git.betfavorit.cf/vadim.tsurkov/kuberweb/libhttp"
+	"git.betfavorit.cf/vadim.tsurkov/kuberweb/models"
 )
 
 func PagePods(w http.ResponseWriter, r *http.Request) {

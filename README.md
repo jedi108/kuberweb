@@ -98,10 +98,9 @@ GOPATH=/go DSN=postgres://$(whoami)@$(netstat -rn | grep "^0.0.0.0 " | cut -d " 
 
 ## TODO
 
-* Logger with network
+* insecure to config
 * hidden field for protect refresh page in browser
 * user actions loging
-* insecure to config
 * request without service
 * disable . in service runner in fm.Println
 * webport, cookie_secret from config

@@ -3,16 +3,14 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
-
-	"git.betfavorit.cf/backend/logger"
-	"github.com/spf13/viper"
-	"github.com/tylerb/graceful"
-	//"os/user"
 	"net/http"
+	"os"
 	"time"
 
-	"os"
+	"github.com/spf13/viper"
+	"github.com/tylerb/graceful"
 
+	"git.betfavorit.cf/backend/logger"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/application"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/models"
 )
@@ -22,11 +20,6 @@ func init() {
 }
 
 func newConfig() (*viper.Viper, error) {
-	//u, err := user.Current()
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	c := viper.New()
 
 	c.SetEnvPrefix("PG")
@@ -36,6 +29,10 @@ func newConfig() (*viper.Viper, error) {
 	pgpass := c.Get("PASSWORD")
 	c.BindEnv("DATABASE")
 	pgdatabase := c.Get("DATABASE")
+
+	c.SetEnvPrefix("REDIS")
+	c.BindEnv("CACHE1")
+	redis1 := c.Get("cache1")
 
 	c.SetEnvPrefix("KUBERNETES")
 	c.BindEnv("ADDR")
@@ -64,6 +61,7 @@ func newConfig() (*viper.Viper, error) {
 		os.Exit(2)
 	}
 
+	c.SetDefault("redis1", redis1)
 	c.SetDefault("kubernetes_address", kubAddress)
 	c.SetDefault("kubernetes_token", kubToken)
 	c.SetDefault("dsn", fmt.Sprintf("postgres://%v:%v@localhost:5432/%v?sslmode=disable", pguser, pgpass, pgdatabase))

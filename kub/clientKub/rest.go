@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
-	"fmt"
-
 	"github.com/pkg/errors"
+
+	"git.betfavorit.cf/backend/logger"
 )
 
 const (
@@ -88,10 +89,12 @@ func NewRestClient(url, token string, forceInsecure bool) *RestClient {
 func (rc *RestClient) CsrfLogin() (string, error) {
 	req, err := http.NewRequest("GET", rc.BaseUrl+"/api/v1/csrftoken/login", strings.NewReader(`{"token":"`+rc.Token+`"}`))
 	if err != nil {
+		logger.Errorf("request csrf login token failed: %v", err)
 		return "", err
 	}
 	resp, err := rc.client.Do(req)
 	if err != nil {
+		logger.Errorf("request do csrf login token failed: %v", err)
 		return "", err
 	}
 
@@ -107,6 +110,7 @@ func (rc *RestClient) CsrfLogin() (string, error) {
 
 	err = json.Unmarshal(newStr, &csrfToken)
 	if err != nil {
+		logger.Errorf("unmarshal csrf login failed: %v", err)
 		return "", err
 	}
 
@@ -122,6 +126,7 @@ func (rc *RestClient) Login(csrfToken string) error {
 		strings.NewReader(`{"token":"`+rc.Token+`"}`),
 	)
 	if err != nil {
+		logger.Errorf("request login failed: %v", err)
 		return err
 	}
 
@@ -131,6 +136,7 @@ func (rc *RestClient) Login(csrfToken string) error {
 	resp, err := rc.client.Do(req)
 
 	if err != nil {
+		logger.Errorf("request do login failed: %v", err)
 		return err
 	}
 
@@ -142,16 +148,19 @@ func (rc *RestClient) Login(csrfToken string) error {
 
 	err = json.Unmarshal(newStr, respAuth)
 	if err != nil {
+		logger.Errorf("unmarhsal response login failed: %v", err)
 		return err
 	}
 	if respAuth.JweToken == "" {
 		err = respAuth.UnmarshalJSON(newStr)
 		if err != nil {
+			logger.Errorf("unmarhsaljson response login failed: %v", err)
 			return err
 		}
 	}
 
 	if respAuth.JweToken == "" {
+		logger.Errorf("request jwt login failed: %v", err)
 		return errors.New("failet to unmarshal jwt")
 	}
 
@@ -175,11 +184,13 @@ func (rc *RestClient) Status() (*LoginStatus, error) {
 
 	req, err := rc.request("GET", "/api/v1/login/status")
 	if err != nil {
+		logger.Errorf("request get login status failed: %v", err)
 		return loginStatus, err
 	}
 
 	err = json.Unmarshal(req, loginStatus)
 	if err != nil {
+		logger.Errorf("unmarshal login status failed: %v", err)
 		return loginStatus, err
 	}
 
@@ -193,6 +204,7 @@ func (rc *RestClient) CsrfToken() error {
 
 	rq, err := rc.request("GET", "/api/v1/csrftoken/token")
 	if err != nil {
+		logger.Errorf("request get csrf token failed: %v", err)
 		return err
 	}
 
@@ -204,6 +216,7 @@ func (rc *RestClient) CsrfToken() error {
 
 	err = json.Unmarshal(rq, &csrfToken)
 	if err != nil {
+		logger.Errorf("unmarshal csrf token failed: %v", err)
 		return err
 	}
 
@@ -222,6 +235,7 @@ func (rc *RestClient) UpdateRefreshToken() error {
 
 	req, err := http.NewRequest("POST", rc.BaseUrl+"/api/v1/token/refresh", zz)
 	if err != nil {
+		logger.Errorf("update request refresh token failed: %v", err)
 		return err
 	}
 
@@ -231,6 +245,7 @@ func (rc *RestClient) UpdateRefreshToken() error {
 	//req.Header.Set("jwetoken", rc.responseAuth.JweToken)
 	resp, err := rc.client.Do(req)
 	if err != nil {
+		logger.Errorf("update do request refresh token failed: %v", err)
 		return err
 	}
 	buf := new(bytes.Buffer)
@@ -241,6 +256,7 @@ func (rc *RestClient) UpdateRefreshToken() error {
 	respAuth := &ResponseAuth{}
 	err = respAuth.UnmarshalJSON(bufByte)
 	if err != nil {
+		logger.Errorf("unmarshal refresh token failed: %v", err)
 		return err
 	}
 	rc.responseAuth = respAuth
@@ -251,6 +267,7 @@ func (rc *RestClient) OverView() ([]byte, error) {
 	var bufByte []byte
 	req, err := http.NewRequest("GET", rc.BaseUrl+"/api/v1/overview?filterBy=&itemsPerPage=15&name=&page=1&sortBy=d,creationTimestamp", strings.NewReader(`{"token":"`+rc.Token+`"}`))
 	if err != nil {
+		logger.Errorf("overview request refresh token failed: %v", err)
 		return bufByte, err
 	}
 
@@ -261,6 +278,7 @@ func (rc *RestClient) OverView() ([]byte, error) {
 
 	resp, err := rc.client.Do(req)
 	if err != nil {
+		logger.Errorf("overview request do refresh token failed: %v", err)
 		return bufByte, err
 	}
 	buf := new(bytes.Buffer)
@@ -293,6 +311,8 @@ func (rc *RestClient) request(method, urlPath string) ([]byte, error) {
 
 	bt, err := token.MarshalJSON()
 	if err != nil {
+		logger.Errorf("request marshal token failed: %v", err)
+		logger.Debugf("marshal token for request path: $v %v", method, urlPath)
 		return bufByte, err
 	}
 

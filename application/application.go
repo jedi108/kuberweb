@@ -14,6 +14,7 @@ import (
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/clientKub"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/kubService"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/middlewares"
+	"git.betfavorit.cf/vadim.tsurkov/kuberweb/redisService"
 )
 
 const kubInsecure = true
@@ -23,6 +24,7 @@ func New(config *viper.Viper) (*Application, error) {
 	dsn := config.Get("dsn").(string)
 	kubAddr := config.Get("kubernetes_address").(string)
 	kubToken := config.Get("kubernetes_token").(string)
+	redis1 := config.Get("redis1").(string)
 
 	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
@@ -37,6 +39,8 @@ func New(config *viper.Viper) (*Application, error) {
 	app.db = db
 	app.sessionStore = sessions.NewCookieStore([]byte(cookieStoreSecret))
 	app.serviceKubernetes = kubService.InitInstance(clientKub.NewRestClient(kubAddr, kubToken, kubInsecure))
+	app.serviceRedis = redisService.NewRedisClients()
+	app.serviceRedis.AddRedisAndInit(redis1)
 
 	return app, err
 }
@@ -48,6 +52,7 @@ type Application struct {
 	db                *sqlx.DB
 	sessionStore      sessions.Store
 	serviceKubernetes *kubService.ServiceKubernetes
+	serviceRedis      *redisService.RedisCache
 }
 
 func (app *Application) MiddlewareStruct() (*interpose.Middleware, error) {
@@ -55,6 +60,7 @@ func (app *Application) MiddlewareStruct() (*interpose.Middleware, error) {
 	middle.Use(middlewares.SetDB(app.db))
 	middle.Use(middlewares.SetSessionStore(app.sessionStore))
 	middle.Use(middlewares.SetKubernetesService(app.serviceKubernetes))
+	middle.Use(middlewares.SetRedisClient(app.serviceRedis))
 
 	middle.UseHandler(app.mux())
 
@@ -78,6 +84,7 @@ func (app *Application) mux() *gorilla_mux.Router {
 
 	router.HandleFunc("/kubernetes/pods", handlers.PagePods).Methods("GET")
 	router.HandleFunc("/kubernetes/deployments", handlers.PageDeployments).Methods("GET", "POST")
+	router.HandleFunc("/redis/list", handlers.PageRedis).Methods("GET", "POST")
 
 	router.Handle("/users/{id:[0-9]+}", MustLogin(http.HandlerFunc(handlers.PostPutDeleteUsersID))).Methods("POST", "PUT", "DELETE")
 	router.Handle("/kubernetes/{id:[0-9]+}", MustLogin(http.HandlerFunc(handlers.PostPutDeleteUsersID))).Methods("POST", "PUT", "DELETE")

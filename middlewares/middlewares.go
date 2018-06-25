@@ -2,14 +2,25 @@
 package middlewares
 
 import (
+	"context"
 	"net/http"
 
-	"context"
-
-	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/kubService"
 	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
+
+	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/kubService"
+	"git.betfavorit.cf/vadim.tsurkov/kuberweb/redisService"
 )
+
+func SetRedisClient(RedisCache *redisService.RedisCache) func(handlerFunc http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+			req = req.WithContext(context.WithValue(req.Context(), "RedisCache", RedisCache))
+
+			next.ServeHTTP(res, req)
+		})
+	}
+}
 
 func SetKubernetesService(serviceKubernetes *kubService.ServiceKubernetes) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
