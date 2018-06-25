@@ -17,12 +17,14 @@ func NewRedisClients() *RedisCache {
 	}
 }
 
-func (rc *RedisCache) AddRedisAndInit(addr string) {
-	rc.client[addr] = redis.NewClient(&redis.Options{
+func (rc *RedisCache) AddRedisAndInit(addr string, dbNum int) {
+	index := fmt.Sprintf("%v,db:%v", addr, dbNum)
+	rc.client[index] = redis.NewClient(&redis.Options{
 		Addr: addr,
+		DB:   dbNum,
 	})
 
-	pong, err := rc.client[addr].Ping().Result()
+	pong, err := rc.client[index].Ping().Result()
 	if err != nil {
 		logger.Fatalf("redis init failse - instanse addr:%v, pong %v", err, pong)
 	}

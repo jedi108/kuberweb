@@ -31,8 +31,10 @@ func newConfig() (*viper.Viper, error) {
 	pgdatabase := c.Get("DATABASE")
 
 	c.SetEnvPrefix("REDIS")
-	c.BindEnv("CACHE1")
-	redis1 := c.Get("cache1")
+	c.BindEnv("ADDR")
+	redisAddr := c.Get("addr")
+	c.BindEnv("DB")
+	redisDb := c.Get("db")
 
 	c.SetEnvPrefix("KUBERNETES")
 	c.BindEnv("ADDR")
@@ -61,7 +63,8 @@ func newConfig() (*viper.Viper, error) {
 		os.Exit(2)
 	}
 
-	c.SetDefault("redis1", redis1)
+	c.SetDefault("redisAddr", redisAddr)
+	c.SetDefault("redisDb", redisDb)
 	c.SetDefault("kubernetes_address", kubAddress)
 	c.SetDefault("kubernetes_token", kubToken)
 	c.SetDefault("dsn", fmt.Sprintf("postgres://%v:%v@localhost:5432/%v?sslmode=disable", pguser, pgpass, pgdatabase))

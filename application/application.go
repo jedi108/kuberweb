@@ -2,6 +2,7 @@ package application
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/carbocation/interpose"
 	gorilla_mux "github.com/gorilla/mux"
@@ -24,7 +25,12 @@ func New(config *viper.Viper) (*Application, error) {
 	dsn := config.Get("dsn").(string)
 	kubAddr := config.Get("kubernetes_address").(string)
 	kubToken := config.Get("kubernetes_token").(string)
-	redis1 := config.Get("redis1").(string)
+	redisAddr := config.Get("redisAddr").(string)
+	redisDb := config.Get("redisDb").(string)
+	redisDbInt, err := strconv.Atoi(redisDb)
+	if err != nil {
+		return nil, err
+	}
 
 	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
@@ -40,7 +46,8 @@ func New(config *viper.Viper) (*Application, error) {
 	app.sessionStore = sessions.NewCookieStore([]byte(cookieStoreSecret))
 	app.serviceKubernetes = kubService.InitInstance(clientKub.NewRestClient(kubAddr, kubToken, kubInsecure))
 	app.serviceRedis = redisService.NewRedisClients()
-	app.serviceRedis.AddRedisAndInit(redis1)
+	app.serviceRedis.AddRedisAndInit(redisAddr, redisDbInt)
+	app.serviceRedis.AddRedisAndInit(redisAddr, redisDbInt+1)
 
 	return app, err
 }
