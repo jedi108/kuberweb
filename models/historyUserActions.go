@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"git.betfavorit.cf/backend/logger"
+
 	"github.com/jmoiron/sqlx"
 )
 

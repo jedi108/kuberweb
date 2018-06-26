@@ -83,8 +83,10 @@ func (app *Application) mux() *gorilla_mux.Router {
 
 	router.Handle("/", MustLogin(http.HandlerFunc(handlers.GetHome))).Methods("GET")
 
-	router.HandleFunc("/signup", handlers.GetSignup).Methods("GET")
-	router.HandleFunc("/signup", handlers.PostSignup).Methods("POST")
+	//Uncomment then usercan registered
+	//router.HandleFunc("/signup", handlers.GetSignup).Methods("GET")
+	//router.HandleFunc("/signup", handlers.PostSignup).Methods("POST")
+
 	router.HandleFunc("/login", handlers.GetLogin).Methods("GET")
 	router.HandleFunc("/login", handlers.PostLogin).Methods("POST")
 	router.HandleFunc("/logout", handlers.GetLogout).Methods("GET")
