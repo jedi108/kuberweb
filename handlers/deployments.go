@@ -1,23 +1,20 @@
 package handlers
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/domain/deployments"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/kubService"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/libhttp"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/models"
 
-	"strings"
-
-	"strconv"
-
-	"fmt"
-
-	"log"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/sessions"
+	"github.com/jmoiron/sqlx"
 )
 
 const maxValueScale = 5
@@ -86,17 +83,30 @@ func PageDeployments(w http.ResponseWriter, r *http.Request) {
 	apiDeps, err := serviceKubernetes.GetDeployments()
 	if err != nil {
 		pgs.AddDangerText(err.Error())
-		log.Printf("Error GetDeployments %v ", err.Error())
+		logger.Errorf("Error GetDeployments %v ", err.Error())
 		kubService.ReloadAuth()
 	}
 
 	if kv, ok := GetKeyValue(r).validate(pgs); ok == true && kv.hasValue {
+		db := r.Context().Value("db").(*sqlx.DB)
+		h := models.NewHistoryUserActions(db, currentUser)
+
 		dresp, err := serviceKubernetes.ScaleBy(kv.Key, kv.ValInt)
+		dreq := fmt.Sprintf("%v=%v", kv.Key, kv.ValInt)
 		if err != nil {
 			pgs.AddDangerText(err.Error())
+			err := h.SaveActionScale(false, err.Error(), dreq)
+			if err != nil {
+				pgs.AddDangerText("db hist err:" + err.Error())
+			}
 		} else {
+			resultText := fmt.Sprintf("actual: %v, desired: %v", dresp.ActualReplicas, dresp.DesiredReplicas)
 			pgs.AddSuccesText(fmt.Sprintf("%v set scale to %v", kv.Key, kv.Value))
-			pgs.AddSuccesText(fmt.Sprintf("actual replicas: %v, desired replicas: %v", dresp.ActualReplicas, dresp.DesiredReplicas))
+			pgs.AddSuccesText(resultText)
+			err := h.SaveActionScale(true, resultText, dreq)
+			if err != nil {
+				pgs.AddDangerText("db hist err:" + err.Error())
+			}
 		}
 	}
 

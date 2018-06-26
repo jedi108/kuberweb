@@ -46,8 +46,7 @@ func (rc *RedisCache) FlushAll() *RedisInfos {
 	var errString = ""
 
 	for k, v := range rc.client {
-		//result, err := v.FlushAll().Result() //v.FlushDB().Result() //v.FlushAll().Result()
-		result, err := v.FlushDB().Result() //v.FlushAll().Result()
+		result, err := v.FlushAll().Result()
 		if err != nil {
 			errString = fmt.Sprintf("%v", err)
 		} else {

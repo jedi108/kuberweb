@@ -1,7 +1,7 @@
 package kubService
 
 import (
-	"log"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,6 +10,10 @@ import (
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/clientKub"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/domain/deployments"
 	"git.betfavorit.cf/vadim.tsurkov/kuberweb/kub/domain/pods"
+)
+
+const (
+	timeRefreshToken = 5
 )
 
 var (
@@ -25,7 +29,8 @@ type ServiceKubernetes struct {
 
 //reload auth if error data received
 func ReloadAuth() {
-	atomic.AddUint32(&initialized, 2)
+	atomic.StoreUint32(&initialized, 2)
+	fmt.Println("initialize:", atomic.LoadUint32(&initialized))
 }
 
 func InitInstance(restClient *clientKub.RestClient) *ServiceKubernetes {
@@ -53,20 +58,22 @@ func (sk *ServiceKubernetes) Start() {
 			if err != nil {
 				break
 			}
-			time.Sleep(time.Second * 2)
+
 			if atomic.LoadUint32(&initialized) == 0 {
-				atomic.StoreUint32(&initialized, 1)
 				ch <- struct{}{}
+				atomic.StoreUint32(&initialized, 1)
 			}
 			if atomic.LoadUint32(&initialized) == 2 {
+				fmt.Println("break initialize:", atomic.LoadUint32(&initialized))
+				logger.Debug("break in service kubernetis", atomic.LoadUint32(&initialized))
 				break
 			}
+			atomic.StoreUint32(&initialized, 1)
+			time.Sleep(time.Minute * timeRefreshToken)
 		}
-		logger.Error("restart auth")
-		log.Printf("restart auth")
-		atomic.StoreUint32(&initialized, 1)
-		time.Sleep(time.Second * 3)
+		logger.Info("restart auth")
 	}
+	logger.Fatalf("exit from service kubernetis start")
 }
 
 func (sk *ServiceKubernetes) refresh() error {
@@ -79,7 +86,6 @@ func (sk *ServiceKubernetes) refresh() error {
 	if err != nil {
 		return err
 	}
-
 	err = sk.restClient.UpdateRefreshToken()
 	return err
 }
@@ -87,13 +93,15 @@ func (sk *ServiceKubernetes) refresh() error {
 func (sk *ServiceKubernetes) auth() {
 	csrfToken, err := sk.restClient.CsrfLogin()
 	if err != nil {
-		logger.Fatal(err)
+		logger.Errorf("auth error CsrfLogin %v", err)
 	}
+	logger.Debug("rest client auth")
 
 	err = sk.restClient.Login(csrfToken)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Errorf("auth error Login %v", err)
 	}
+	logger.Debug("rest client login csrf")
 }
 
 func (sk *ServiceKubernetes) GetPods() (*pods.ApiPod, error) {
