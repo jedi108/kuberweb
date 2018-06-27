@@ -22,6 +22,10 @@ func init() {
 func newConfig() (*viper.Viper, error) {
 	c := viper.New()
 
+	c.SetEnvPrefix("WEB")
+	c.BindEnv("PORT")
+	webport := c.Get("port").(string)
+
 	c.SetEnvPrefix("PG")
 	c.BindEnv("USER")
 	pguser := c.Get("USER")
@@ -69,7 +73,7 @@ func newConfig() (*viper.Viper, error) {
 	c.SetDefault("kubernetes_token", kubToken)
 	c.SetDefault("dsn", fmt.Sprintf("postgres://%v:%v@localhost:5432/%v?sslmode=disable", pguser, pgpass, pgdatabase))
 	c.SetDefault("cookie_secret", "qaBzlTixkx2c9S6i")
-	c.SetDefault("http_addr", ":8888")
+	c.SetDefault("http_addr", ":"+webport)
 	c.SetDefault("http_cert_file", "")
 	c.SetDefault("http_key_file", "")
 	c.SetDefault("http_drain_interval", "1s")
